@@ -135,4 +135,4 @@ if symbol:
             st.write("**52W Range:**", f"{data['low_52']} - {data['high_52']}")
             st.write("**Volume:**", f"{data['volume']:,}")
             st.write("**Avg Volume (1 mo):**", f"{int(data['avg_volume']):,}")
-            st.write("**Market Cap:**", f"{data['market_cap']:,}" if isinstance(data['market_cap'], (int, float)) else data['market_cap"])
+            st.write("**Market Cap:**", f"{data['market_cap']:,.}" if isinstance(data['market_cap'], (int, float)) else data["market_cap"])
