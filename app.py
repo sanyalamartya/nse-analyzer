@@ -96,4 +96,6 @@ def fetch_stock_data(symbol):
         return {"error": str(e)}
 
 # --- Streamlit App UI ---
-st.set_page_config(page_title="NSE Stock Analyzer", la_
+st.set_page_config(page_title="NSE Stock Analyzer", layout="centered")
+
+
