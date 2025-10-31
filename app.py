@@ -33,6 +33,26 @@ def get_recommendation(data):
     else:
         return "❌ Avoid"
 
+# --- Breakout Detection Logic ---
+def detect_breakout(data):
+    try:
+        price = data["lastPrice"]
+        high_52 = data["high52"]
+        previous_close = data.get("previousClose", 0)
+        volume = data["quantityTraded"]
+        avg_volume = data.get("averageVolume", 0) or 0
+
+        near_high = price >= 0.95 * high_52
+        price_up = price > previous_close
+        volume_spike = avg_volume and volume > 1.2 * avg_volume
+
+        if near_high and price_up and volume_spike:
+            return "⚡ Potential Breakout Detected!"
+        else:
+            return "No breakout signal"
+    except Exception as e:
+        return f"Error detecting breakout: {e}"
+
 # --- Streamlit App UI ---
 nse = Nse()
 
@@ -43,4 +63,26 @@ symbol = st.text_input("Enter NSE stock symbol (e.g., INFY, TCS, RELIANCE)").low
 
 if symbol:
     with st.spinner("Fetching stock data..."):
-        tr
+        try:
+            data = nse.get_quote(symbol)
+            if data:
+                st.subheader(f"{data['companyName']} ({symbol.upper()})")
+                st.metric("Last Price (₹)", data["lastPrice"])
+
+                # 🔎 Recommendation
+                recommendation = get_recommendation(data)
+                st.markdown(f"### 🔎 Recommendation: {recommendation}")
+
+                # 📊 Breakout Detection
+                breakout = detect_breakout(data)
+                st.markdown(f"### 📊 Breakout Status: {breakout}")
+
+                # 📈 Extra Info
+                st.write("**Day Range:**", f"{data['dayLow']} - {data['dayHigh']}")
+                st.write("**52W Range:**", f"{data['low52']} - {data['high52']}")
+                st.write("**Volume Traded:**", data["quantityTraded"])
+                st.write("**Market Cap:**", data.get("marketCapFull", "N/A"))
+            else:
+                st.error("Invalid symbol or no data found.")
+        except Exception as e:
+            st.error(f"Error fetching data: {e}")
