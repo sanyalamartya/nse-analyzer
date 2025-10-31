@@ -96,36 +96,4 @@ def fetch_stock_data(symbol):
         return {"error": str(e)}
 
 # --- Streamlit App UI ---
-st.set_page_config(page_title="NSE Stock Analyzer", layout="centered")
-st.title("📈 NSE Stock Analyzer")
-
-symbol = st.text_input("Enter NSE stock symbol (e.g., INFY, TCS, RELIANCE)").upper()
-
-if symbol:
-    with st.spinner("Fetching data..."):
-        data = fetch_stock_data(symbol)
-
-        if "error" in data:
-            st.error(f"Error fetching data: {data['error']}")
-        elif data["last_price"] == 0:
-            st.error("No data available for this symbol.")
-        else:
-            st.subheader(f"{data['name']} ({symbol}.NS)")
-            st.metric("Last Price (₹)", data["last_price"])
-
-            # 🔎 Recommendation
-            recommendation = get_recommendation(data)
-            st.markdown(f"### 🔎 Recommendation: {recommendation}")
-
-            # 📊 Breakout Detection
-            breakout = detect_breakout(data)
-            st.markdown(f"### 📊 Breakout Status: {breakout}")
-
-            # ⏳ Hold Duration
-            hold = estimate_hold_duration(data)
-            st.markdown(f"### ⏳ {hold}")
-
-            # 📈 Additional Info
-            st.write("**Day Range:**", f"{data['day_low']} - {data['day_high']}")
-            st.write("**52W Range:**", f"{data['low_52']} - {data['high_52']}")
-            st.write("**Volume:**", f"{data
+st.set_page_config(page_title="NSE Stock Analyzer", la_
