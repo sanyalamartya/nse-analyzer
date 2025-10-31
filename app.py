@@ -1,26 +1,29 @@
 import streamlit as st
-from nsetools import Nse
+import yfinance as yf
+import datetime
 
 # --- Recommendation Logic ---
 def get_recommendation(data):
     score = 0
 
     try:
-        # 1. Price strength vs 52W high
-        price = data["lastPrice"]
-        high_52 = data["high52"]
+        price = data["last_price"]
+        high_52 = data["high_52"]
+        low_52 = data["low_52"]
+        volume = data["volume"]
+        avg_volume = data["avg_volume"]
+        previous_close = data["prev_close"]
+
+        # 1. Price near 52W high
         if price > 0.9 * high_52:
             score += 1
 
-        # 2. Volume momentum (vs average volume, fallback if not available)
-        volume = data["quantityTraded"]
-        avg_volume = data.get("averageVolume", 0) or 0
+        # 2. Volume surge
         if avg_volume and volume > 1.5 * avg_volume:
             score += 1
 
-        # 3. Positive day gain %
-        previous_close = data.get("previousClose", 0)
-        if previous_close and price > previous_close:
+        # 3. Positive momentum
+        if price > previous_close:
             score += 1
 
     except Exception as e:
@@ -33,14 +36,14 @@ def get_recommendation(data):
     else:
         return "❌ Avoid"
 
-# --- Breakout Detection Logic ---
+# --- Breakout Detection ---
 def detect_breakout(data):
     try:
-        price = data["lastPrice"]
-        high_52 = data["high52"]
-        previous_close = data.get("previousClose", 0)
-        volume = data["quantityTraded"]
-        avg_volume = data.get("averageVolume", 0) or 0
+        price = data["last_price"]
+        high_52 = data["high_52"]
+        previous_close = data["prev_close"]
+        volume = data["volume"]
+        avg_volume = data["avg_volume"]
 
         near_high = price >= 0.95 * high_52
         price_up = price > previous_close
@@ -53,36 +56,61 @@ def detect_breakout(data):
     except Exception as e:
         return f"Error detecting breakout: {e}"
 
-# --- Streamlit App UI ---
-nse = Nse()
+# --- Fetch Stock Data ---
+def fetch_stock_data(symbol):
+    try:
+        ticker = yf.Ticker(f"{symbol.upper()}.NS")
+        info = ticker.info
 
+        hist = ticker.history(period="1mo")
+        volume_series = hist["Volume"]
+        avg_volume = volume_series.mean() if not volume_series.empty else 0
+
+        return {
+            "name": info.get("shortName", symbol.upper()),
+            "last_price": info.get("currentPrice", 0),
+            "day_low": info.get("dayLow", 0),
+            "day_high": info.get("dayHigh", 0),
+            "low_52": info.get("fiftyTwoWeekLow", 0),
+            "high_52": info.get("fiftyTwoWeekHigh", 0),
+            "volume": info.get("volume", 0),
+            "avg_volume": avg_volume,
+            "prev_close": info.get("previousClose", 0),
+            "market_cap": info.get("marketCap", "N/A"),
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+# --- Streamlit App ---
 st.set_page_config(page_title="NSE Stock Analyzer", layout="centered")
 st.title("📈 NSE Stock Analyzer")
 
-symbol = st.text_input("Enter NSE stock symbol (e.g., INFY, TCS, RELIANCE)").lower()
+symbol = st.text_input("Enter NSE stock symbol (e.g., INFY, TCS, RELIANCE)").upper()
 
 if symbol:
-    with st.spinner("Fetching stock data..."):
-        try:
-            data = nse.get_quote(symbol)
-            if data:
-                st.subheader(f"{data['companyName']} ({symbol.upper()})")
-                st.metric("Last Price (₹)", data["lastPrice"])
+    with st.spinner("Fetching data..."):
+        data = fetch_stock_data(symbol)
 
-                # 🔎 Recommendation
-                recommendation = get_recommendation(data)
-                st.markdown(f"### 🔎 Recommendation: {recommendation}")
+        if "error" in data:
+            st.error(f"Error fetching data: {data['error']}")
+        elif data["last_price"] == 0:
+            st.error("No data available for this symbol.")
+        else:
+            st.subheader(f"{data['name']} ({symbol}.NS)")
+            st.metric("Last Price (₹)", data["last_price"])
 
-                # 📊 Breakout Detection
-                breakout = detect_breakout(data)
-                st.markdown(f"### 📊 Breakout Status: {breakout}")
+            # 🔎 Recommendation
+            recommendation = get_recommendation(data)
+            st.markdown(f"### 🔎 Recommendation: {recommendation}")
 
-                # 📈 Extra Info
-                st.write("**Day Range:**", f"{data['dayLow']} - {data['dayHigh']}")
-                st.write("**52W Range:**", f"{data['low52']} - {data['high52']}")
-                st.write("**Volume Traded:**", data["quantityTraded"])
-                st.write("**Market Cap:**", data.get("marketCapFull", "N/A"))
-            else:
-                st.error("Invalid symbol or no data found.")
-        except Exception as e:
-            st.error(f"Error fetching data: {e}")
+            # 📊 Breakout
+            breakout = detect_breakout(data)
+            st.markdown(f"### 📊 Breakout Status: {breakout}")
+
+            # 📈 Extra Info
+            st.write("**Day Range:**", f"{data['day_low']} - {data['day_high']}")
+            st.write("**52W Range:**", f"{data['low_52']} - {data['high_52']}")
+            st.write("**Volume:**", f"{data['volume']:,}")
+            st.write("**Avg Volume (1 mo):**", f"{int(data['avg_volume']):,}")
+            st.write("**Market Cap:**", f"{data['market_cap']:,}" if isinstance(data['market_cap'], (int, float)) else data['market_cap'])
