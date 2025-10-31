@@ -1,6 +1,5 @@
 import streamlit as st
 import yfinance as yf
-import datetime
 
 # --- Recommendation Logic ---
 def get_recommendation(data):
@@ -9,7 +8,6 @@ def get_recommendation(data):
     try:
         price = data["last_price"]
         high_52 = data["high_52"]
-        low_52 = data["low_52"]
         volume = data["volume"]
         avg_volume = data["avg_volume"]
         previous_close = data["prev_close"]
@@ -22,7 +20,7 @@ def get_recommendation(data):
         if avg_volume and volume > 1.5 * avg_volume:
             score += 1
 
-        # 3. Positive momentum
+        # 3. Positive day change
         if price > previous_close:
             score += 1
 
@@ -36,7 +34,7 @@ def get_recommendation(data):
     else:
         return "❌ Avoid"
 
-# --- Breakout Detection ---
+# --- Breakout Detection Logic ---
 def detect_breakout(data):
     try:
         price = data["last_price"]
@@ -56,15 +54,35 @@ def detect_breakout(data):
     except Exception as e:
         return f"Error detecting breakout: {e}"
 
+# --- Hold Duration Estimation ---
+def estimate_hold_duration(data):
+    try:
+        price = data["last_price"]
+        high_52 = data["high_52"]
+        previous_close = data["prev_close"]
+        volume = data["volume"]
+        avg_volume = data["avg_volume"]
+
+        near_high = price >= 0.95 * high_52
+        price_up = price > previous_close
+        volume_surge = avg_volume and volume > 1.5 * avg_volume
+
+        if near_high and price_up and volume_surge:
+            return "📆 Suggested Hold: 2–4 weeks (strong breakout trend)"
+        elif price_up and volume > avg_volume:
+            return "⏱️ Suggested Hold: 1–2 weeks (moderate momentum)"
+        else:
+            return "⚠️ Suggested Hold: Short term (few days) – consider exit on weakness"
+    except:
+        return "Unable to estimate hold duration."
+
 # --- Fetch Stock Data ---
 def fetch_stock_data(symbol):
     try:
         ticker = yf.Ticker(f"{symbol.upper()}.NS")
         info = ticker.info
-
         hist = ticker.history(period="1mo")
-        volume_series = hist["Volume"]
-        avg_volume = volume_series.mean() if not volume_series.empty else 0
+        avg_volume = hist["Volume"].mean() if not hist.empty else 0
 
         return {
             "name": info.get("shortName", symbol.upper()),
@@ -82,7 +100,7 @@ def fetch_stock_data(symbol):
     except Exception as e:
         return {"error": str(e)}
 
-# --- Streamlit App ---
+# --- Streamlit App UI ---
 st.set_page_config(page_title="NSE Stock Analyzer", layout="centered")
 st.title("📈 NSE Stock Analyzer")
 
@@ -104,13 +122,17 @@ if symbol:
             recommendation = get_recommendation(data)
             st.markdown(f"### 🔎 Recommendation: {recommendation}")
 
-            # 📊 Breakout
+            # 📊 Breakout Detection
             breakout = detect_breakout(data)
             st.markdown(f"### 📊 Breakout Status: {breakout}")
 
-            # 📈 Extra Info
+            # ⏳ Hold Duration
+            hold = estimate_hold_duration(data)
+            st.markdown(f"### ⏳ {hold}")
+
+            # 📈 Additional Info
             st.write("**Day Range:**", f"{data['day_low']} - {data['day_high']}")
             st.write("**52W Range:**", f"{data['low_52']} - {data['high_52']}")
             st.write("**Volume:**", f"{data['volume']:,}")
             st.write("**Avg Volume (1 mo):**", f"{int(data['avg_volume']):,}")
-            st.write("**Market Cap:**", f"{data['market_cap']:,}" if isinstance(data['market_cap'], (int, float)) else data['market_cap'])
+            st.write("**Market Cap:**", f"{data['market_cap']:,}" if isinstance(data['market_cap'], (int, float)) else data['market_cap"])
