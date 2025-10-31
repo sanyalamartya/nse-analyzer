@@ -1,3 +1,2 @@
 streamlit
-nsetools
-pandas
+yfinance
