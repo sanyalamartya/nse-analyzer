@@ -12,15 +12,10 @@ def get_recommendation(data):
         avg_volume = data["avg_volume"]
         previous_close = data["prev_close"]
 
-        # 1. Price near 52W high
         if price > 0.9 * high_52:
             score += 1
-
-        # 2. Volume surge
         if avg_volume and volume > 1.5 * avg_volume:
             score += 1
-
-        # 3. Positive day change
         if price > previous_close:
             score += 1
 
@@ -133,6 +128,4 @@ if symbol:
             # 📈 Additional Info
             st.write("**Day Range:**", f"{data['day_low']} - {data['day_high']}")
             st.write("**52W Range:**", f"{data['low_52']} - {data['high_52']}")
-            st.write("**Volume:**", f"{data['volume']:,}")
-            st.write("**Avg Volume (1 mo):**", f"{int(data['avg_volume']):,}")
-            st.write("**Market Cap:**", f"{data['market_cap']:,.}" if isinstance(data['market_cap'], (int, float)) else data["market_cap"])
+            st.write("**Volume:**", f"{data
